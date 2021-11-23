@@ -43,10 +43,13 @@ extern "C" int tebako_main(int* argc, char*** argv) {
 	char** new_argv = NULL;
 	char* argv_memory = NULL;
 
-	if (strstr((*argv)[0], "miniruby") != NULL) {
+
+ printf("Hello. argv[0]=%s\n", (*argv)[0]);
+	if (strstr((*argv)[0], "ruby") != NULL) {
 // Ruby build script is deigned in such a way that this patch is also applied towards miniruby
 // Just pass through in such case
 		ret = 0;
+printf("Bye\n");
 	}
 	else {
 		try {

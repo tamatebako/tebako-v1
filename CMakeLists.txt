@@ -196,23 +196,6 @@ ExternalProject_Add(${DWARFS_WR_PRJ}
 # ...................................................................
 # Ruby
 
-if(RUBY_DEBUG_BUILD)
-  set(RUBY_C_FLAGS_1 "-g -O0 -pipe")
-else()
-  set(RUBY_C_FLAGS_1 "-O3 -fno-fast-math -ggdb3 -Os -fdata-sections -ffunction-sections")
-endif()
-set(RUBY_C_FLAGS_2 "-fPIC -pipe -static -static-libgcc -I${DEPS_INCLUDE_DIR} -I${CMAKE_CURRENT_SOURCE_DIR}/include")
-string(CONCAT RUBY_C_FLAGS ${RUBY_C_FLAGS_1} " " ${RUBY_C_FLAGS_2})
-set(RUBY_L_FLAGS "-L${DEPS_LIB_DIR} -L${CMAKE_CURRENT_BINARY_DIR}")
-
-message("Ruby build CFLAGS='${RUBY_C_FLAGS}'")
-message("Ruby build LDFLAGS='${RUBY_L_FLAGS}'")
-
-#   --disable-shared
-#   --with-vendordir = ${RLD}
-#    -static-libgcc
-#    --prefix=${DATA_SRC_DIR}
-
 ExternalProject_Add(${RUBY_PRJ}
    PREFIX ${DEPS}
    URL https://cache.ruby-lang.org/pub/ruby/${RUBY_VER_BASE}/ruby-${RUBY_VER}.tar.gz
@@ -221,7 +204,6 @@ ExternalProject_Add(${RUBY_PRJ}
    SOURCE_DIR ${RUBY_SOURCE_DIR}
    BINARY_DIR ${RUBY_BINARY_DIR}
    UPDATE_COMMAND ""
-   PATCH_COMMAND ${PATCHES}/ruby/pass1.sh ${RUBY_SOURCE_DIR} ${RUBY_BINARY_DIR}
    CONFIGURE_COMMAND ${RUBY_SOURCE_DIR}/configure
                      --enable-bundled-libyaml
                      --without-gmp
@@ -232,8 +214,6 @@ ExternalProject_Add(${RUBY_PRJ}
                      --with-jemalloc
                      --srcdir=${RUBY_SOURCE_DIR}
                      --prefix=${DATA_SRC_DIR}
-                     CFLAGS=${RUBY_C_FLAGS}
-                     LDFLAGS=${RUBY_L_FLAGS}
    INSTALL_COMMAND ""
 )
 
@@ -269,7 +249,6 @@ else (${SETUP_MODE})
            COMMAND ${CMAKE_COMMAND} -E make_directory ${DATA_SRC_DIR}
            COMMAND ${CMAKE_COMMAND} -E make_directory ${DATA_PRE_DIR}
            COMMAND ${CMAKE_COMMAND} -E make_directory ${DATA_BIN_DIR}
-           COMMAND ${PATCHES}/ruby/pass1.sh ${RUBY_SOURCE_DIR} ${RUBY_BINARY_DIR}
            COMMAND ${CMAKE_COMMAND} -E chdir ${RUBY_BINARY_DIR} make install
            DEPENDS ${RUBY_PRJ}
   )
@@ -382,27 +361,40 @@ else (${SETUP_MODE})
 
   configure_file(
     ${DATA_RES_DIR}/tebako-version.h.in
-    ${CMAKE_CURRENT_SOURCE_DIR}/include/tebako-version.h
+    ${PROJECT_SOURCE_DIR}/include/tebako-version.h
     @ONLY
   )
 
   configure_file(
     ${DATA_RES_DIR}/tebako-fs.cpp.in
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/tebako-fs.cpp
+    ${PROJECT_SOURCE_DIR}/src/tebako-fs.cpp
     @ONLY
   )
 
-  add_custom_target(packaged_filesystem
+  add_custom_target(packaged-filesystem
      COMMAND ${CMAKE_COMMAND} -E rm -rf ${DATA_SRC_DIR}/share   ${DATA_SRC_DIR}/include  ${DATA_SRC_DIR}/lib/*.a ${DATA_SRC_DIR}/lib/pkgconfig
                                         ${DATA_SRC_DIR}/bin/bundle  ${DATA_SRC_DIR}/bin/bundler  ${DATA_SRC_DIR}/bin/erb  ${DATA_SRC_DIR}/bin/gem
                                         ${DATA_SRC_DIR}/bin/irb ${DATA_SRC_DIR}/bin/racc  ${DATA_SRC_DIR}/bin/racc2y ${DATA_SRC_DIR}/bin/rake
                                         ${DATA_SRC_DIR}/bin/rdoc ${DATA_SRC_DIR}/bin/ri ${DATA_SRC_DIR}/bin/ruby ${DATA_SRC_DIR}/bin/y2racc
      COMMAND chmod +x ${DEPS_BIN_DIR}/*
      COMMAND ${DEPS_BIN_DIR}/mkdwarfs -o ${DATA_BIN_FILE} -i ${DATA_SRC_DIR}
-     COMMAND ${CMAKE_COMMAND} -E touch ${CMAKE_CURRENT_SOURCE_DIR}/src/tebako-fs.cpp
+     COMMAND ${CMAKE_COMMAND} -E touch ${PROJECT_SOURCE_DIR}/src/tebako-fs.cpp
      DEPENDS setup source_filesystem
      BYPRODUCTS ${DATA_BIN_FILE}
   )
+
+  if(RUBY_DEBUG_BUILD)
+    set(RUBY_C_FLAGS_1 "-g -O0 -pipe")
+  else()
+    set(RUBY_C_FLAGS_1 "-O3 -fno-fast-math -ggdb3 -Os -fdata-sections -ffunction-sections")
+  endif()
+  set(RUBY_C_FLAGS_2 "-static -static-libgcc -fPIC -pipe -I${DEPS_INCLUDE_DIR} -I${CMAKE_CURRENT_SOURCE_DIR}/include")
+  string(CONCAT RUBY_C_FLAGS ${RUBY_C_FLAGS_1} " " ${RUBY_C_FLAGS_2})
+  set(RUBY_L_FLAGS "-L${DEPS_LIB_DIR} -L${CMAKE_CURRENT_BINARY_DIR}")
+
+message("Ruby build CFLAGS='${RUBY_C_FLAGS}'")
+message("Ruby build LDFLAGS='${RUBY_L_FLAGS}'")
+
 
   set(CMAKE_CXX_FLAGS "${RUBY_C_FLAGS}")
 
@@ -413,18 +405,43 @@ else (${SETUP_MODE})
     include/tebako-version.h
     include/tebako-main.h)
 
-  add_dependencies(tebako-fs ${INCBIN_PRJ} packaged_filesystem)
+  add_dependencies(tebako-fs ${INCBIN_PRJ} packaged-filesystem)
 
-  add_custom_target(patched_ruby
-     COMMAND ${PATCHES}/ruby/pass2.sh ${RUBY_SOURCE_DIR} ${RUBY_BINARY_DIR}
-     COMMAND ${CMAKE_COMMAND} -E chdir ${RUBY_BINARY_DIR} make
-     DEPENDS setup tebako-fs
+  set(RUBY_P2_PRJ "${RUBY_PRJ}-pass-2")
+  set(RUBY_P2_SOURCE_DIR "${DEPS}/src/${RUBY_P2_PRJ}")
+  set(RUBY_P2_BINARY_DIR "${DEPS}/src/${RUBY_P2_PRJ}-build")
+
+
+  ExternalProject_Add(${RUBY_P2_PRJ}
+    PREFIX ${DEPS}
+    URL https://cache.ruby-lang.org/pub/ruby/${RUBY_VER_BASE}/ruby-${RUBY_VER}.tar.gz
+    URL_HASH SHA256=${RUBY_HASH}
+    DOWNLOAD_NO_PROGRESS true
+    SOURCE_DIR ${RUBY_P2_SOURCE_DIR}
+    BINARY_DIR ${RUBY_P2_BINARY_DIR}
+    UPDATE_COMMAND ""
+    PATCH_COMMAND ${PATCHES}/ruby/pass2.sh ${RUBY_P2_SOURCE_DIR} ${RUBY_P2_BINARY_DIR}
+    CONFIGURE_COMMAND ${RUBY_P2_SOURCE_DIR}/configure
+                      --enable-bundled-libyaml
+                      --without-gmp
+                      --disable-dtrace
+                      --enable-debug-env
+                      --disable-install-doc
+                      --with-static-linked-ext
+                      --with-jemalloc
+                      --srcdir=${RUBY_P2_SOURCE_DIR}
+                      --prefix=${PROJECT_BINARY_DIR}
+                      CFLAGS=${RUBY_C_FLAGS}
+                      LDFLAGS=${RUBY_L_FLAGS}
+    INSTALL_COMMAND ""
   )
 
+  add_dependencies(${RUBY_P2_PRJ} tebako-fs)
+
   add_custom_target(tebako ALL
-    COMMAND ${CMAKE_COMMAND} -E copy ${RUBY_BINARY_DIR}/ruby ${APP_NAME}
+    COMMAND ${CMAKE_COMMAND} -E copy ${RUBY_P2_BINARY_DIR}/ruby ${APP_NAME}
     COMMAND ${CMAKE_COMMAND} -E echo "Tebako packaging has completed"
-    DEPENDS patched_ruby
+    DEPENDS ${RUBY_P2_PRJ}
   )
 
 endif(${SETUP_MODE})
