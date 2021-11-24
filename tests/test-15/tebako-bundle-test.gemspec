@@ -1,8 +1,6 @@
-require_relative "lib/tebako/bundle/test/version"
-
 Gem::Specification.new do |spec|
   spec.name          = "tebako-bundle-test"
-  spec.version       = Tebako::Bundle::Test::VERSION
+  spec.version       = "0.0.2"
   spec.authors       = ["Ribose"]
   spec.email         = ["open.source@ribose.com"]
 

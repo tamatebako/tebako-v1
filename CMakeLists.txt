@@ -113,18 +113,18 @@ if (NOT ${SETUP_MODE})
 # ...................................................................
 # Filesystem locations
 
+# This is actually a constant that shall match libdwarfs-wr TEBAKO_MOUNT_POINT at tebako-common.h
+set(FS_MOUNT_POINT "/__tebako_memfs__")
+set(FS_APP_HOME "/.")
+
 # DATA_SRC_DIR folder is used to collect all files that need to be packaged
-  set(DATA_SRC_DIR  ${CMAKE_CURRENT_BINARY_DIR}/source_filesystem)
+  set(DATA_SRC_DIR  ${CMAKE_CURRENT_BINARY_DIR}${FS_MOUNT_POINT})
 # DATA_PRE_DIR folder is used to build gems  that need to be packaged
   set(DATA_PRE_DIR  ${CMAKE_CURRENT_BINARY_DIR}/prepare_filesystem)
 # DATA_BIN_DIR folder is used to create packaged filesystem
   set(DATA_BIN_DIR  ${CMAKE_CURRENT_BINARY_DIR}/packaged_filesystem)
 # DATA_BIN_FILE is packaged filesystem itself
   set(DATA_BIN_FILE ${DATA_BIN_DIR}/fs.bin)
-
-# This is actually a constant that shall match libdwarfs-wr TEBAKO_MOUNT_POINT at tebako-common.h
-  set(FS_MOUNT_POINT "/__tebako_memfs__")
-  set(FS_APP_HOME "/.")
 
 endif(NOT ${SETUP_MODE})
 
@@ -141,7 +141,8 @@ def_ext_prj_g(DWARFS_WR "16bcac1")
 
 message("................................................")
 message("Collecting packages:")
-message("ruby                        - " v${RUBY_VER}           " at " ${RUBY_SOURCE_DIR})
+message("ruby [the first pass]       - " v${RUBY_VER}           " at " ${RUBY_SOURCE_DIR})
+#message("ruby [the second pass]      - " v${RUBY_VER}           " at " ${RUBY_P2_SOURCE_DIR})
 message("bundler                     - " v${BUNDLER_VER}        " at " ${BUNDLER_SOURCE_DIR})
 message("incbin                      - " @${INCBIN_TAG}         " at " ${INCBIN_SOURCE_DIR})
 message("dwarfs with tebako wrapper  - " @${DWARFS_WR_TAG}      " at " ${DWARFS_WR_SOURCE_DIR})
@@ -245,7 +246,7 @@ else (${SETUP_MODE})
 
   add_custom_target(clean_filesystem
            COMMAND ${CMAKE_COMMAND} -E echo "clean_filesystem: creating '${DATA_SRC_DIR}', '${DATA_PRE_DIR}', '${DATA_BIN_DIR}'"
-           COMMAND ${CMAKE_COMMAND} -E rm -rf ${DATA_SRC_DIR} ${DATA_PRE_DIR} ${DATA_BIN_DIR}
+           COMMAND ${CMAKE_COMMAND} -E rm -rf ${DATA_SRC_DIR} ${DATA_PRE_DIR} ${DATA_BIN_DIR}           
            COMMAND ${CMAKE_COMMAND} -E make_directory ${DATA_SRC_DIR}
            COMMAND ${CMAKE_COMMAND} -E make_directory ${DATA_PRE_DIR}
            COMMAND ${CMAKE_COMMAND} -E make_directory ${DATA_BIN_DIR}
@@ -320,12 +321,14 @@ else (${SETUP_MODE})
       message(FATAL_ERROR "Multiple gems detected in ${FS_ROOT}")
     else(GLENGTH GREATER 1)
       message("Installing Ruby gem from ${GEM}")
+# {MEMFS}/lib/ruby/gems/#{self.class.ruby_api_version}/bin/#{@entrance}
       set(FS_ENTRY_POINT "/bin/${FS_ENTRANCE}")
+#      set(FS_ENTRY_POINT "/lib/ruby/gems/${RUBY_API_VER}/bin/${FS_ENTRANCE}") 
       message("Target entry point will be at ${FS_MOUNT_POINT}${FS_ENTRY_POINT}")
       add_custom_target(source_filesystem
          COMMAND ${CMAKE_COMMAND} -E copy_directory ${FS_ROOT} ${DATA_PRE_DIR}
          COMMAND unset GEM_HOME && unset GEM_PATH && cd ${DATA_PRE_DIR} && export PATH=${TBD}:$PATH &&
-                  gem install ${GEM} --verbose --no-document --install-dir ${TGD}
+                 ${TBD}/gem install ${GEM} --verbose --no-document                                                                  # --install-dir ${TGD}
          COMMAND test -f ${DATA_SRC_DIR}${FS_ENTRY_POINT} ||
                   (${CMAKE_COMMAND} -E echo "Entry point ${DATA_SRC_DIR}${FS_ENTRY_POINT} does not exist" &&
                    ${CMAKE_COMMAND} -E false )
@@ -388,7 +391,7 @@ else (${SETUP_MODE})
   else()
     set(RUBY_C_FLAGS_1 "-O3 -fno-fast-math -ggdb3 -Os -fdata-sections -ffunction-sections")
   endif()
-  set(RUBY_C_FLAGS_2 "-static -static-libgcc -fPIC -pipe -I${DEPS_INCLUDE_DIR} -I${CMAKE_CURRENT_SOURCE_DIR}/include")
+  set(RUBY_C_FLAGS_2 " -static -static-libgcc -fPIC -pipe -I${DEPS_INCLUDE_DIR} -I${CMAKE_CURRENT_SOURCE_DIR}/include")
   string(CONCAT RUBY_C_FLAGS ${RUBY_C_FLAGS_1} " " ${RUBY_C_FLAGS_2})
   set(RUBY_L_FLAGS "-L${DEPS_LIB_DIR} -L${CMAKE_CURRENT_BINARY_DIR}")
 
@@ -411,7 +414,6 @@ message("Ruby build LDFLAGS='${RUBY_L_FLAGS}'")
   set(RUBY_P2_SOURCE_DIR "${DEPS}/src/${RUBY_P2_PRJ}")
   set(RUBY_P2_BINARY_DIR "${DEPS}/src/${RUBY_P2_PRJ}-build")
 
-
   ExternalProject_Add(${RUBY_P2_PRJ}
     PREFIX ${DEPS}
     URL https://cache.ruby-lang.org/pub/ruby/${RUBY_VER_BASE}/ruby-${RUBY_VER}.tar.gz
@@ -419,7 +421,6 @@ message("Ruby build LDFLAGS='${RUBY_L_FLAGS}'")
     DOWNLOAD_NO_PROGRESS true
     SOURCE_DIR ${RUBY_P2_SOURCE_DIR}
     BINARY_DIR ${RUBY_P2_BINARY_DIR}
-    UPDATE_COMMAND ""
     PATCH_COMMAND ${PATCHES}/ruby/pass2.sh ${RUBY_P2_SOURCE_DIR} ${RUBY_P2_BINARY_DIR}
     CONFIGURE_COMMAND ${RUBY_P2_SOURCE_DIR}/configure
                       --enable-bundled-libyaml
@@ -430,7 +431,7 @@ message("Ruby build LDFLAGS='${RUBY_L_FLAGS}'")
                       --with-static-linked-ext
                       --with-jemalloc
                       --srcdir=${RUBY_P2_SOURCE_DIR}
-                      --prefix=${PROJECT_BINARY_DIR}
+                      --prefix=${DATA_SRC_DIR}
                       CFLAGS=${RUBY_C_FLAGS}
                       LDFLAGS=${RUBY_L_FLAGS}
     INSTALL_COMMAND ""

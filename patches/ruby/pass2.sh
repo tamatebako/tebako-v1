@@ -30,6 +30,22 @@ restore_and_save() {
 
 }
 
+# ......................................................................
+# quoteRe() quotes (escapes) for use in a regex
+# quoteSubst() quotes for use in the substitution string of a s/// call.
+# https://stackoverflow.com/questions/407523/escape-a-string-for-a-sed-replace-pattern
+# SYNOPSIS:
+#  quoteRe <text>
+#  quoteSubst <text>
+quoteRe() { 
+  $(printf '%s\n' "$1" | sed -e 's/[]\/$*.^[]/\\&/g')
+}
+quoteSubst() {
+  $(printf '%s\n' "$1" | sed -e 's/[\/&]/\\&/g')
+}
+
+
+
 # Copy make script include file that list all libraries required for tebako static build
 PATCH_DIR="$( cd "$( dirname "$0" )" && pwd )"
 cp -f $PATCH_DIR/mainlibs.mk $2/mainlibs.mk
@@ -48,11 +64,12 @@ sed -i "s/#include <float.h>/#include <float.h>\n#include \"bigdecimal-patch.h\"
 restore_and_save $1/ext/Setup
 sed -i "s/\#option nodynamic/option nodynamic/g" $1/ext/Setup
 
+# ......................................................................
 # Patch main in order to redefine command line
-restore_and_save $1/main.c
 # Replace only the first occurence
 # https://www.linuxtopia.org/online_books/linux_tool_guides/the_sed_faq/sedfaq4_004.html
 # [TODO this looks a kind of risky]
+restore_and_save $1/main.c
 sed -i "0,/int$/s//#include <tebako-main.h>\n\nint/" $1/main.c
 sed -i "0,/{$/s//{\n    if (tebako_main(\&argc, \&argv) != 0) { return -1; }\n/" $1/main.c
 
@@ -95,9 +112,44 @@ sed -i "s/VALUE rb_cIO;/#include <tebako\/tebako-defines.h>\n#include <tebako\/t
 restore_and_save $1/process.c
 # [TODO ???]
 
+# ......................................................................
+# Patch configuration so that ruby starts to beoleve that it has been installed to /__tebako_memfs__
 # ruby/tool/mkconfig.rb
 restore_and_save $1/tool/mkconfig.rb
-# [TODO ???]
+
+# This is what we are trying to insert:
+#
+#    v_head_comp = "  CONFIG[\"prefix\"] #{eq} "
+#      if v_head_comp == v[0...(v_head_comp.length)]
+#        if win32
+#          v = "#{v[0...(v_head_comp.length)]}CONFIG[\"RUBY_EXEC_PREFIX\"] = '\/__tebako_memfs__'\\n"
+#        else
+#          v = "#{v[0...(v_head_comp.length)]}'/__tebako_memfs__'\n"
+#        end
+#      end
+#      v_head_comp = "  CONFIG[\"RUBY_EXEC_PREFIX\"] #{eq} "
+#      if v_head_comp == v[0...(v_head_comp.length)]
+#        v = "#{v[0...(v_head_comp.length)]}'\/__tebako_memfs__'\\n"
+#      end
+
+PATCH="\n"
+PATCH+="# -- Start of tebako patch --\n"
+PATCH+="    v_head_comp = \"  CONFIG[\\\\\"prefix\\\\\"] #{eq} \"\n"
+PATCH+="    if v_head_comp == v[0...(v_head_comp.length)]\n"
+PATCH+="      if win32\n"
+PATCH+="        v = \"#{v[0...(v_head_comp.length)]}CONFIG[\\\\\"RUBY_EXEC_PREFIX\\\\\"] = '\/__tebako_memfs__'\\\n\"\n"
+PATCH+="      else\n"
+PATCH+="        v = \"#{v[0...(v_head_comp.length)]}'\/__tebako_memfs__'\\\n\"\n"
+PATCH+="      end\n"
+PATCH+="    end\n"
+PATCH+="    v_head_comp = \"  CONFIG[\\\\\"RUBY_EXEC_PREFIX\\\\\"] #{eq} \"\n"
+PATCH+="    if v_head_comp == v[0...(v_head_comp.length)]\n"
+PATCH+="      v = \"#{v[0...(v_head_comp.length)]}'\/__tebako_memfs__'\\\n\"\n"
+PATCH+="    end\n"
+PATCH+="# -- End of tebako patch --\n\n"
+PATCH+="    if fast[name]"
+
+sed -i "s/    if fast\[name\]/$PATCH/g"  $1/tool/mkconfig.rb
 
 # ruby/util.c
 restore_and_save $1/util.c

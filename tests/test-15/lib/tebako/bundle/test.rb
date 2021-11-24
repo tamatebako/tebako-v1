@@ -1,7 +1,6 @@
 # frozen_string_literal: true
 
 require 'text-table'
-require_relative "test/version"
 
 module Tebako
   module Bundle
@@ -18,7 +17,7 @@ module Tebako
       end
 
       def run!
-       puts "Hello! This is test-20 talking from inside DwarFS"
+       puts "Hello! This is test-15 talking from inside DwarFS"
        puts "You will now see a nice table that will be drawn for you by text-table gem."
        self.msg
       end
