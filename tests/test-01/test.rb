@@ -15,9 +15,8 @@ puts 'Gem.path=' + Gem.path.to_s()
 dirs = Gem.path
 
 dirs.flat_map do |dir|
-    base_dir = File.dirname dir
-    gems_dir = File.join base_dir, "gems"
-    glb = Dir.glob("*", base: dir) 
+    gems_dir = File.join dir, "gems"
+    glb = Dir.glob("*", base: gems_dir) 
 
     puts "\n===>  " + glb.size.to_s() + " gems at " + gems_dir.to_s() + "\n\n"
     puts glb.map { |path| 

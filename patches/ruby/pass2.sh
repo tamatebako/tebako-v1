@@ -30,21 +30,6 @@ restore_and_save() {
 
 }
 
-# ......................................................................
-# quoteRe() quotes (escapes) for use in a regex
-# quoteSubst() quotes for use in the substitution string of a s/// call.
-# https://stackoverflow.com/questions/407523/escape-a-string-for-a-sed-replace-pattern
-# SYNOPSIS:
-#  quoteRe <text>
-#  quoteSubst <text>
-quoteRe() { 
-  $(printf '%s\n' "$1" | sed -e 's/[]\/$*.^[]/\\&/g')
-}
-quoteSubst() {
-  $(printf '%s\n' "$1" | sed -e 's/[\/&]/\\&/g')
-}
-
-
 
 # Copy make script include file that list all libraries required for tebako static build
 PATCH_DIR="$( cd "$( dirname "$0" )" && pwd )"
@@ -80,6 +65,7 @@ sed -i "0,/{$/s//{\n    if (tebako_main(\&argc, \&argv) != 0) { return -1; }\n/"
 restore_and_save $1/dir.c
 # Replace only the first occurence
 sed -i "0,/#ifdef __APPLE__/s//#include <tebako\/tebako-defines.h>\n#include <tebako\/tebako-io.h>\n\n#ifdef __APPLE__/" $1/dir.c
+sed -i "s/if (cur + 1 == end && (\*cur)->type <= ALPHA) {/if (cur + 1 == end \&\& (\*cur)->type <= ALPHA \&\& !tebako_is(buf)) {/g" $1/dir.c
 #  [TODO MacOS]  libdwarfs issues 45,46
 
 # ruby/dln.c

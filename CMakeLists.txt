@@ -137,7 +137,7 @@ string(CONCAT RUBY_API_VER ${RUBY_VER_BASE} ".0")
 def_ext_prj_t(BUNDLER  "2.2.3"  "6acefda4aeb34cb3d69aff06affce10424d69f484402a9f7f5577e8c698070db")
 
 def_ext_prj_g(INCBIN "348e36b")
-def_ext_prj_g(DWARFS_WR "16bcac1")
+def_ext_prj_g(DWARFS_WR "dfba3a4")
 
 message("................................................")
 message("Collecting packages:")
