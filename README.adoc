@@ -1,5 +1,21 @@
 = Tebako: An advanced image packager for interpretive languages
 
+[WARNING]
+====
+*tebako v1 is archived.* This repository keeps the C++/gem-era
+implementation readable for reference. Development continues in the Rust
+stack at https://github.com/tamatebako/tebako — new users should start
+there.
+
+* The `tebako` gem remains published on rubygems
+  (https://rubygems.org/gems/tebako[0.15.9 is the final v1 release];
+  nothing is yanked), and binaries already pressed with it keep working.
+  v1 receives no further releases, fixes, or PR reviews.
+* Migrating an existing v1 setup? Read the v1 → v2 migration guide —
+  the press flag map, lean vs fat packages, and CI before/afters:
+  https://www.tebako.org/docs/migrate-v1-v2/
+====
+
 .Continuous Integration Status
 [cols="1,1,3"]
 |===
