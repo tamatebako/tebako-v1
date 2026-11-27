@@ -120,7 +120,7 @@ jobs:
       - name: Shall upload artifacts?
         id: shall-upload
         run: |
-          if [ "${{ matrix.package_ruby_ver }}" == "3.3.7" ] && [ "${{ matrix.ruby_ver }}" == "3.3.7" ] && [ "${{ matrix.env.os }}" == "macos-14" ]; then
+          if [ "${{ matrix.package_ruby_ver }}" == "3.3.7" ] && [ "${{ matrix.ruby_ver }}" == "3.3.7" ] && [ "${{ matrix.env.os }}" == "macos-15" ]; then
             echo "upload=true" >> $GITHUB_OUTPUT
           else
             echo "upload=false" >> $GITHUB_OUTPUT
